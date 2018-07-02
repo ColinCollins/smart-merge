@@ -1,0 +1,12 @@
+{
+  "name": "smart-merge",
+  "version": "1.0.0",
+  "description": "smart-merge",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ColinCollins/smart-merge.git"
+  },
+  "author": "",
+  "license": "ISC"
+}
