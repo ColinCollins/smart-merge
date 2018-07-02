@@ -7,6 +7,15 @@
     "type": "git",
     "url": "https://github.com/ColinCollins/smart-merge.git"
   },
-  "author": "",
-  "license": "ISC"
+  "scripts": {
+    "merge": "npm run delete && npm run merge"
+  },
+  "author": "ColinCollins",
+  "license": "ISC",
+  "devDependencies": {
+    "commander": "^2.16.0",
+    "del": "^3.0.0",
+    "globby": "^8.0.1",
+    "gulp": "^3.9.1"
+  }
 }
