@@ -1,9 +1,10 @@
 const process = require('process');
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const del = require('del');
+const { execFileSync } = require('child_process');
  
-var files = {
+var fireFiles = {
     base: new Map(),
     remote: new Map(),
     local: new Map()
@@ -12,26 +13,43 @@ var files = {
 (function () {
     // args is the fill path, you must get the tool, we recommander the webstorm
     var args = process.argv;
+    var config = fs.readFileSync('./package.json', {encoding: 'utf8'}).smartMerge;
+    var compareFiles = [];
 
-    dumpSortFireFiles(Array.of(args[2]), files.base); // base
-    dumpSortFireFiles(Array.of(args[3]), files.remote) // remote
-    dumpSortFireFiles(Array.of(args[4]), files.local); // local
+    var tempPath = path.join(process.cwd(), config.cachePath);  
+    // clear the destination fold.
+    del.sync(tempPath + '/*');
 
-    outputFiles(args[5]); // args[5] is a path
-
-    //merge = compareForCover(files.base, files.remote, files.local, merge); // merge is a array.
-    args[5] = merge;
-})();
-
-function dumpSortFireFiles(filesPath, filesPos) {   
-    filesPath.forEach(function (filepath, index) {
-        var fileProp = path.parse(filepath);
-        if (fileProp.ext !== '.fire') {
+    if (path.extname(args[2]) === '.fire') {
+        dumpSortFireFiles(args[2], fireFiles.base); // base
+        dumpSortFireFiles(args[3], fireFiles.remote) // remote
+        dumpSortFireFiles(args[4], fireFiles.local); // local
+       
+        // design the path that can be read
+        if (!fs.existsSync(tempPath)) {
+            console.error('Destination path is not available.')
             return;
         }
-        // There use the Sync is better, you don not to consider about the async and the how to return.
+        // create the compare files, the files ext is the json
+        compareFiles = outputFiles(resolvePath);
+    }
+    else {
+        // if is not fire file conflict
+        for (let i = 2; i < args.length - 1; i++) {
+            compareFiles.push(args[i]);
+        }
+    }
+    
+    // merge is a array. args[6] is the tool. depend tool setting in the project.json, you must have a save the merge file
+    compareForMerge(config.dependMergeTool, compareFiles, config.cachePath);
+    console.log('1111111111');
+
+})();
+
+function dumpSortFireFiles(filePath, filesPos) {   
+        var fileProp = path.parse(filePath);
         // fs set the encoding return a string back
-        var origin = fs.readFileSync(filepath, {
+        var origin = fs.readFileSync(filePath, {
             encoding: 'utf8',
         });
         // then sort and write to a new file, the sort is the json format
@@ -62,62 +80,63 @@ function dumpSortFireFiles(filesPath, filesPos) {
         });
         filesPos.get(fileProp.name).nodes.sort(nodesCompare);
         filesPos.get(fileProp.name).components.sort(compsCompare);
-    });
-    return filesPos;
 }
 
 function outputFiles (destinationPath) {
-    var filesName = files.base.keys();
+    var filesName = fireFiles.base.keys();
     var name = '';
-    var cwd = path.cwd;
-    // design the path that can be read
-    if (!fs.accessSync(destinationPath)) {
-        console.error('Destination path is not available.')
-        return;
-    }
 
-    for (let i = 0 ; i < files.base.size ; i++) {
+    for (let i = 0; i < fireFiles.base.size; i++) {
         var modelBase, modelRemote, modelLocal;
         name = filesName.next().value;
-        modelBase = createModel(files.base, name);
-        modelRemote = createModel(files.remote, name);
-        modelLocal = createModel(files.local, name);
+        modelBase = createModel(fireFiles.base, name);
+        modelRemote = createModel(fireFiles.remote, name);
+        modelLocal = createModel(fireFiles.local, name);
         
-        var compareFile = path.join(destinationPath, name);
-
-
-        fs.writeFileSync(compareFile, modelBase, {
+        var compareFold = path.join(destinationPath, name);
+        // create the fold of conflict fire
+        fs.mkdirSync(compareFold);
+        fs.writeFileSync(compareFold + '/Base.json', modelBase, {
             encoding: 'utf8',
             flag: 'w'
         });
-        fs.writeFileSync(compareFile, modelRemote, {
+        fs.writeFileSync(compareFold + '/Remote.json', modelRemote, {
             encoding: 'utf8',
             flag: 'w'
         });
-        fs.writeFileSync(compareFile, modelLocal, {
+        fs.writeFileSync(compareFold + '/Loacl.json', modelLocal, {
             encoding: 'utf8',
             flag: 'w'
         });
     };
+
+    var paths = fs.readdirSync(compareFold,{encoding: 'utf8'}).map(x => path.join(compareFold, x));
+    return paths;
 } 
 
 function createModel (filePos, fileName) {
     var model = [];
     filePos.get(fileName).nodes.forEach(function (obj) {
-        model.push(obj._properties); // get the sort node message;
+        // get the sort node message;
+        model.push(obj._properties);
     });
     // how to consider about the sort.
     filePos.get(fileName).components.forEach(function (obj) {
         model.push(obj._properties);
     });
 
-    return JSON.stringify(model)
+    return JSON.stringify(model, null, '\t')
 }
 
-
-function compareForCover (base, remote, local, merge) {
-    // remote local length =  base.length
+function compareForMerge (toolPath, compareFiles, tempPath) {
+    // use the extenstion tool to resolve conflict.
+    var base = compareFiles[0];
+    var remote = compareFiles[1];
+    var local = compareFiles[2];
     
+    var merge = path.join(tempPath + 'merge.json');
+
+    execFileSync(toolPath, [base, remote, local, ]);
 }
 
 function nodesCompare (a, b) {
