@@ -2,20 +2,18 @@
   "name": "smart-merge",
   "version": "1.0.0",
   "description": "smart-merge",
-  "main": "index.js",
+  "main": "merge.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/ColinCollins/smart-merge.git"
   },
   "scripts": {
-    "merge": "npm run delete && npm run merge"
+    "merge": "node merge.js"
   },
   "author": "ColinCollins",
   "license": "ISC",
   "devDependencies": {
-    "commander": "^2.16.0",
     "del": "^3.0.0",
-    "globby": "^8.0.1",
-    "gulp": "^3.9.1"
+    "globby": "^8.0.1"
   }
 }
