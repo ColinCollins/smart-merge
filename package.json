@@ -17,8 +17,7 @@
     "globby": "^8.0.1"
   },
   "smartMerge": {
-    "dependMergeTool": "D:/KDiff3/kdiff3.exe",
-    "cacheFold": "./cache"
+    "dependMergeTool": "D:/KDiff3/kdiff3.exe"
   }
 }
   
