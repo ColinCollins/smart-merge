@@ -167,15 +167,16 @@ function resolveData (rawData, tempData) {
                     id: rawData[i]._id,
                     components: rawData[i]._components,
                     prefab: rawData[i]._prefab,
+                    clickEvent: [],  // if button
+                    content: [] // if scrollview
                 }
                 break;
             default:
                 // cut down the run out of.
-                branch = {
-                    
-                };
+                branch = {};
                 break;
         }
+        branch.index = i; 
         branch.type = type,
         branch._properties = rawData[i];
         tempData.push(branch);
@@ -195,8 +196,12 @@ function groupingData (tempData, filePos) {
             case 'cc.Node':
                 var comps = []
                 for (let i = 0; i < obj.components.length; i++) {
+                    // add to the new comp content
                     comps.push(tempData[obj.components[i].__id__]._properties);
                 }
+
+                modifyComponet
+
                 obj.components = comps;
                 if (obj.prefab) {
                     id = obj.prefab.__id__;
@@ -205,6 +210,7 @@ function groupingData (tempData, filePos) {
                 filePos.nodes.push(obj);
                 break;
         }
+
      });
 }
 // input the filePos.nodes
