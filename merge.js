@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const del = require('del');
 const { execFileSync } = require('child_process');
- 
+
 var fireFiles = {
     base: {},
     remote: {},
@@ -11,6 +11,7 @@ var fireFiles = {
 };
 
 (function () {
+    //commander input
     var args = process.argv;
     if (args.length < 5) {
         console.error('Arguments not enough!');
@@ -22,17 +23,13 @@ var fireFiles = {
     var projectPath = path.parse(args[2]);
     var dir = projectPath.dir;
     var merge = path.join(dir, 'merge.json');
+    var sortPattern = args[5];
 
     if (projectPath.ext === '.fire') {
-        fireFiles.base = dumpSortFireFiles(args[2]); // base
-        fireFiles.remote = dumpSortFireFiles(args[3]) // remote
-        fireFiles.local = dumpSortFireFiles(args[4]); // local
-       
-        // design the path that can be read
-        if (!fs.existsSync(dir)) {
-            console.error('Destination path is not available.')
-            return;
-        }
+        fireFiles.base = dumpSortFireFiles(args[2], sortPattern); // base
+        fireFiles.remote = dumpSortFireFiles(args[3], sortPattern) // remote
+        fireFiles.local = dumpSortFireFiles(args[4], sortPattern); // local
+        
         // create the compare files, the files ext is the json
         compareFiles = outputFiles(dir);
         // depend tool setting in the project.json, you must have to save the merge file
@@ -50,29 +47,26 @@ var fireFiles = {
     return;
 })();
 
-function dumpSortFireFiles(originFile) {   
+function dumpSortFireFiles(originFile, sortPattern) {   
     var origin = fs.readFileSync(originFile, {
         encoding: 'utf8',
     });
     var rawData = JSON.parse(origin);
     var tempData = [];
-    resolveData(rawData, tempData);
-    /* second Machin this part we need change the comp part or change all part. */
-    indexToUnique(tempData);
-    // third Machin return to the fireFiles need to use by other
     var fileProp = path.parse(originFile);
     var filesPos = {
         name: fileProp.name,
-        sceneHeader: [],
-        nodes: [],
-        components: [],
-        prefabInfos: []
+        sceneAssset: null,
+        nodes: []
     }
-    // only consider two part of the fire content.   
+    resolveData(rawData, tempData);
+    // second Machin this part we need change the comp part or change all part.
     groupingData(tempData, filesPos);
-
-    filesPos.nodes.sort(nodesCompare);
-    filesPos.components.sort(compsCompare);
+    // change the all _id or mark
+    arrangeIndex(filesPos.nodes);
+    // only consider two part of the fire content.  need change.
+    var sortCompare = sortPattern ? sortById : sortByName;
+    filesPos.nodes.sort(sortCompare);
 
     return filesPos;  
 }
@@ -86,7 +80,7 @@ function outputFiles (destinationPath) {
     modelRemote = createModel(fireFiles.remote);
     modelLocal = createModel(fireFiles.local);
     
-    var compareFold = path.join(destinationPath, '/cache');
+    var compareFold = path.join(destinationPath, '/mergeCache');
     // add the clear the destination fold.
     if (fs.existsSync(compareFold))
         del.sync(compareFold + '/**', {force: true});
@@ -106,22 +100,15 @@ function outputFiles (destinationPath) {
         flag: 'w'
     });
 
-    var paths = fs.readdirSync(compareFold,{encoding: 'utf8'}).map(x => path.join(compareFold, x));
+    var paths = fs.readdirSync(compareFold, {encoding: 'utf8'}).map(x => path.join(compareFold, x));
 
     return paths;
 } 
 
 function createModel (filePos) {
-    var model = [];
-    filePos.sceneHeader.forEach(function (obj) {
-        model.push(obj)
-    });
-    filePos.nodes.forEach(function (obj) {
-        model.push(obj);
-    });
-    filePos.components.forEach(function (obj) {
-        model.push(obj);
-    });
+    var model = {};
+
+    // createTree
 
     return JSON.stringify(model, null, '\t')
 }
@@ -139,14 +126,12 @@ function outputCover (tempFile, savePath) {
     var merge = fs.readFileSync(tempFile, {encoding: 'utf8'});
     var rawData = JSON.parse(merge);
     // we get the rawData of the merage
-    uniqueToIndex(rawData);
+    markToIndex(rawData);
 
     console.log('``````````````finished!````````````````');
     var result = [];
 
-    rawData.forEach(function (data) {
-        result.push(data._properties);
-    });
+    
     var name = fireFiles.base.name;
     fs.writeFileSync(`${savePath}/${name}.fire`, JSON.stringify(result, null, '\t'), {
         encoding: 'utf8',
@@ -158,136 +143,127 @@ function outputCover (tempFile, savePath) {
 
 function resolveData (rawData, tempData) {
     // firstMachin
+    var branch;
     for (let i = 0; i < rawData.length; i++) {
-        var type, unique = '';
-        // create the unique id, there maybe need change or make a model to other file as a import.
-        switch (rawData[i].__type__) {
+        var type = rawData[i].__type__;
+        console.log(type + i);
+        switch(type) {
             case 'cc.SceneAsset':
-                unique = 'fileHeader';
-                type = 'sceneAsset';
+                branch = {
+                    scene: null
+                }
                 break;
             case 'cc.Scene':
-                unique = `scene-${rawData[i]._id}`;
-                type = 'scene';
+                branch = {
+                    index: i,
+                    name: 'Scene',
+                    id: rawData[i]._id,
+                }
                 break;
             case 'cc.Node':
-                unique = `node-${rawData[i]._name}-${rawData[i]._id}`;
-                type = 'node';
+                branch = {
+                    index: i,
+                    name: rawData[i]._name,
+                    id: rawData[i]._id,
+                    components: rawData[i]._components,
+                    prefab: rawData[i]._prefab,
+                }
                 break;
-            case 'cc.PrefabInfo':
-                // need to consider about the root 
-                unique = `prefabInfo-${rawData[i]._fileId}`;
-                type = 'prefabInfo';
-                break;
-            default: 
-                // there is the compone contain the custome and the office componet
-                unique = `comp-${rawData[i].__type__}`;
-                type = 'comp';
+            default:
+                // cut down the run out of.
+                branch = {
+                    
+                };
                 break;
         }
-        var branch = {
-            index: i,
-            type: type,
-            unique: unique,
-            data: rawData[i]
-        };
+        branch.type = type,
+        branch._properties = rawData[i];
         tempData.push(branch);
     }
 }
 
-function groupingData (tempData, filesPos) {
+function groupingData (tempData, filePos) {
+    // sort the grounp 
     tempData.forEach(function (obj) {
         switch(obj.type) {
-            case 'scene':
-            case 'node':
-                var node = {
-                    _id:obj.data._id,
-                    type: obj.type,
-                    unique: obj.unique,
-                    _properties: obj.data
-                };
-                filesPos.nodes.push(node);
+            case 'cc.SceneAsset':
+                filePos.sceneAssset = obj._properties;
                 break;
-            case 'comp':
-                var component = {
-                    node: obj.data.node.__id__,
-                    type: obj.type,
-                    unique: obj.unique,
-                    _properties: obj.data
-                };
-                filesPos.components.push(component);
+            case 'cc.Scene':
+                filePos.nodes.push(obj);
                 break;
-            case 'prefabInfo':
-                var info = {
-                    root: obj.data.root.__id__,
-                    type: obj.type,
-                    unique: obj.unique,
-                    _properties: obj.data
+            case 'cc.Node':
+                var comps = []
+                for (let i = 0; i < obj.components.length; i++) {
+                    comps.push(tempData[obj.components[i].__id__]._properties);
                 }
-                filesPos.prefabInfos.push(info);
-                break;
-            case 'sceneAsset':
-                var header = {
-                    type: obj.type,
-                    unique: obj.unique,
-                    _properties: obj.data
+                obj.components = comps;
+                if (obj.prefab) {
+                    id = obj.prefab.__id__;
+                    obj.prefab = tempData[id]._properties;
                 }
-                filesPos.sceneHeader.push(header)
+                filePos.nodes.push(obj);
                 break;
+        }
+     });
+}
+// input the filePos.nodes
+function arrangeIndex (nodes) {
+    nodes.forEach(function (node) {
+        node._properties = locationId(node._properties, nodes);
+        // this judge is use for scene
+        if(node.components && node.components.length > 0) {
+            node.components.forEach(function (comp) {
+                comp.node = null;
+            });
+        }
+        if (node.prefab) {
+            node.prefab.root = null;
         }
     });
 }
 
-function nodesCompare (a, b) {
-    return a._id.localeCompare(b._id);
-}
-
-function compsCompare (a, b) {
-    return a.node > b.node;
-}
-
-function indexToUnique (tempData) {
-    tempData.forEach(function (obj) {
-        obj.data = locationId(obj.data, tempData);
-    });
-}
-
-function locationId (objData, tempData) {
-    var str = JSON.stringify(objData, null, '\t');
-    str = str.replace(/"__id__": ([0-9]+)/g, function (match, index) {
-        var unique = getUnique(tempData, parseInt(index));
-        return `"__id__": "${unique}"`;
-    });
-    objData = JSON.parse(str);
+function locationId (objData, objArr) {
+    // There is the node prefab and components proto
+    if (objData._prefan) {
+        objData._prefab = null;
+    }
+    if (objData._components && objData._components.length > 0){
+        objData._components = null;
+    }
+    if (objData._children && objData._children.length > 0) {
+        objData._children.forEach(function (child) {
+            for (let i = 0; i < objArr.length; i++) {
+                if (objArr[i].index === child.__id__) {
+                    child.__id__ = objArr[i].id;
+                    break;
+                }
+            }; 
+        });
+    }
+    if (objData._parent) {
+        objArr.forEach(function (tar) {
+            if (tar.index === objData._parent.__id__) {
+                objData._parent.__id__ = tar.id;
+            }
+        }); 
+    }
 
     return objData;
 }
 
-function uniqueToIndex (tempData) {
+function markToIndex (tempData) {
     tempData.forEach(function (obj) {
-        if (obj.type === 'node') {
-            if (obj._properties._components.length > 0) {
-                obj._properties._components.forEach(function (comp) {
-                    tempData.forEach(function (data, index) {
-                        if (data.type === 'comp') {
-                            if (data.unique === comp.__id__ && data.node === obj.unique) {
-                                comp.__id__ = index;
-                            }
-                        }
-                    });
-                });
-            }
-        }
-        obj._properties = locationIndex(obj._properties, tempData);
+        locationIndex(obj, tempData);
     });
 }
 
 function locationIndex (objData, tempData) {
-    // must the node sort first, or will lost the unique
+    // must the node sort first, or will lost the mark
     var str = JSON.stringify(objData, null, '\t');
-    str = str.replace(/"__id__": "([\S]+)"/g, function (match, unique) {
+    str = str.replace(/"__id__": "([\S]+)"/g, function (match, mark) {
         var index = tempData.findIndex(function (ele) {
-            if (unique === ele.unique) {
+            if (mark === ele.mark) {
                 return ele;
             }
         });
@@ -298,11 +274,18 @@ function locationIndex (objData, tempData) {
     return objData;
 }
 
-function getUnique (array, index) {
+/* function getId (array, index) {
     var obj = array.find(function (ele) {
         if (ele.index === index) {
             return ele;
         }
     });
-    return obj.unique;
+    return obj.id;
+} */
+
+function sortById (a, b) {
+    return a.id.localeCompare(b.id);
+}
+function sortByName (a, b) {
+    return a.name.localeCompare(b.name);
 }
