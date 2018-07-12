@@ -199,7 +199,7 @@ function createModel (filePos) {
     model.push(header);
     // node
     filePos.nodes.forEach(function (obj) {
-        obj._properties._components = null;
+        obj._properties._components = [];
         obj._properties._prefab = null;
         var node = {
             mark: obj.mark,
@@ -220,7 +220,7 @@ function createModel (filePos) {
                     });
                 } 
                 else {
-                    comp._properties.node = null;
+                    comp._properties.node = {};
                     node._components.push({
                         mark: comp.mark,
                         content: comp._properties
@@ -232,7 +232,7 @@ function createModel (filePos) {
         if (obj.prefab) {
             filePos.prefabInfos.forEach(function (info) {
                 if (obj.prefab.__id__ == info.mark) {
-                    info._properties.root = null;
+                    info._properties.root = {};
                     node._prefabInfos.push({
                         mark: info.mark,
                         content: info._properties
@@ -286,29 +286,34 @@ function transToNormal (mergeData) {
             return;
         }
         for (let i = 0; i < obj._components.length; i++) {
+            obj._components[i].content.node.__id__ = obj.mark;
             tempData.push({
                 mark: obj._components[i].mark,
                 content: obj._components[i].content
             });
+            obj.content._components.push({
+                __id__: obj._components[i].mark
+            });
         }
         if (obj._prefabInfos.length > 0) {
+            obj._prefabInfos[0].content.root.__id__ = obj.mark;
             tempData.push({
                 mark: obj._prefabInfos[0].mark,
                 content: obj._prefabInfos[0].content
             });
+            obj.content._prefab = {
+                __id__: obj._prefabInfos[0].mark
+            };
         }
         for (let k = 0; k < obj._clickEvent.length; k++) {
             tempData.push({
-                mark: obj._clickEvent[i].mark,
-                content: obj._clickEvent[i].content
+                mark: obj._clickEvent[k].mark,
+                content: obj._clickEvent[k].content
             });
         }
     });
-    markToIndex(tempData);
-    var result = [];
-    tempData.forEach(function (data) {
-        result.push(data.content);
-    });
+
+    var result = markToIndex(tempData);
 
     return result;
 }
@@ -334,7 +339,6 @@ function recurseChild (node, mergeData) {
         return result;
     }
     node.content._children.forEach(function (child) {
-        console.log(child);
         for (let i = 0; i < mergeData.length; i++) {
             if (mergeData[i].mark === child.__id__) {
                 record = recurseChild (mergeData[i], mergeData);
@@ -391,7 +395,7 @@ function markToIndex (tempData) {
 function locationIndex (objData, tempData) {
     // must the node sort first, or will lost the mark
     var str = JSON.stringify(objData, null, '\t');
-    str = str.replace(/"__id__": "([\S]+)"/g, function (match, mark) {
+    str = str.replace(/"__id__": "([\S ]+)"/g, function (match, mark) {
         var index = tempData.findIndex(function (ele) {
             if (mark === ele.mark) {
                 return ele;
