@@ -38,7 +38,7 @@ var fireFiles = {
         // depend tool setting in the project.json, you must have to save the merge file
         compareForMerge(config.dependMergeTool, compareFiles, merge);
         // resort the merge to the scene fire
-        outputCover(merge, dir);
+        coverFile(merge, dir);
     }
     else {
         // if is not fire file conflict
@@ -66,18 +66,16 @@ function dumpSortFireFiles(originFile, sortNorm) {
     }
 
     resolveData(rawData, tempData);
-    indexTomark(tempData);
-    // only consider two part of the fire content.   
+    indexToMark(tempData);
     groupingData(tempData, filesPos);
 
-    var nodesCompare = sortNorm ? compareById : compareByName;
+    var nodesCompare = sortNorm === '-id' ? compareById : compareByName;
     filesPos.nodes.sort(nodesCompare);
 
     return filesPos;  
 }
 
 function resolveData (rawData, tempData) {
-    // firstMachin
     for (let i = 0; i < rawData.length; i++) {
         var mark = '';
         // create the mark id, there maybe need change or make a model to other file as a import.
@@ -93,11 +91,10 @@ function resolveData (rawData, tempData) {
                 mark = `node-${rawData[i]._name}-${rawData[i]._id}`;
                 break;
             case 'cc.PrefabInfo':
-                // need to consider about the root 
                 mark = `prefabInfo-${rawData[i].fileId}`;
                 break;
-                // add here to remind you there are some special obj
             case 'cc.ClickEvent':
+                // did not get the special and only can be find by comp
                 makr = `clickEvent-${rawData[i].__type__}`;
                 break;
             default: 
@@ -193,32 +190,58 @@ function outputFiles (destinationPath) {
 } 
 
 function createModel (filePos) {
-    var model = {};
+    var model = [];
     // header
-    model[filePos.sceneHeader.__type__] = filePos.sceneHeader;
+    var header = {
+        mark: filePos.sceneHeader.__type__,
+        content: filePos.sceneHeader
+    };
+    model.push(header);
     // node
     filePos.nodes.forEach(function (obj) {
-        model[obj.mark] = obj._properties;
+        obj._properties._components = null;
+        obj._properties._prefab = null;
+        var node = {
+            mark: obj.mark,
+            content: obj._properties,
+            _components: [],
+            _prefabInfos: [],
+            _clickEvent: []
+        }
         // comp there has been sort
         filePos.components.forEach(function (comp) {
             var compMark = comp.mark;
             var parse = compMark.split('-'); 
             if (parse[2] == obj._id) {
-                model[comp.mark] = comp._properties;
+                if (parse[3] == 'cc.ClickEvent') {
+                    node._clickEvent.push({
+                        mark: comp.mark,
+                        content: comp._properties
+                    });
+                } 
+                else {
+                    comp._properties.node = null;
+                    node._components.push({
+                        mark: comp.mark,
+                        content: comp._properties
+                    });
+                }
             }
         });
         // prefab
         if (obj.prefab) {
             filePos.prefabInfos.forEach(function (info) {
                 if (obj.prefab.__id__ == info.mark) {
-                    model[info.mark] = info._properties;
+                    info._properties.root = null;
+                    node._prefabInfos.push({
+                        mark: info.mark,
+                        content: info._properties
+                    });
                 }
             });
         }
+        model.push(node);
     });
-
-    // we get the rawData of the merage
-    markToIndex(model);
 
     return JSON.stringify(model, null, '\t');
 }
@@ -231,28 +254,102 @@ function compareForMerge (toolPath, compareFiles, merge) {
     execFileSync(toolPath, [base, remote, local, '-o', merge]);
 }
 
-function outputCover (tempFile, savePath) {
+function coverFile (tempFile, savePath) {
     // resort the index; tempFile is json file
     var merge = fs.readFileSync(tempFile, {encoding: 'utf8'});
-    var rawData = JSON.parse(merge);
+    var data = JSON.parse(merge);
+    
+    // sort and create new array 
+    var result = transToNormal(data);
 
     console.log('``````````````finished!````````````````');
-    var result = [];
-
-    rawData.forEach(function (data) {
-        result.push(data._properties);
-    });
-    var name = fireFiles.base.name;
+    
+    var name = fireFiles.base.name.split('_')[0];
     fs.writeFileSync(`${savePath}/${name}.fire`, JSON.stringify(result, null, '\t'), {
         encoding: 'utf8',
         force: true
     });
     del.sync(tempFile, {force: true});
-    del.sync(path.join(savePath, 'cache'), {force: true})
+    del.sync(path.join(savePath, 'Mergecache'), {force: true});
 }
 
+function transToNormal (mergeData) {
+    var tempData = [];
+    mergeData = sortForTree(mergeData);
+    mergeData.forEach(function (obj) {
+        tempData.push({
+            mark: obj.mark,
+            content: obj.content
+        });
 
-function indexTomark (tempData) {
+        if (obj.content.__type__ === 'cc.SceneAsset') {
+            return;
+        }
+        for (let i = 0; i < obj._components.length; i++) {
+            tempData.push({
+                mark: obj._components[i].mark,
+                content: obj._components[i].content
+            });
+        }
+        if (obj._prefabInfos.length > 0) {
+            tempData.push({
+                mark: obj._prefabInfos[0].mark,
+                content: obj._prefabInfos[0].content
+            });
+        }
+        for (let k = 0; k < obj._clickEvent.length; k++) {
+            tempData.push({
+                mark: obj._clickEvent[i].mark,
+                content: obj._clickEvent[i].content
+            });
+        }
+    });
+    markToIndex(tempData);
+    var result = [];
+    tempData.forEach(function (data) {
+        result.push(data.content);
+    });
+
+    return result;
+}
+
+function sortForTree (mergeData) {
+    var scene = mergeData.find(function (ele) {
+        if (ele.content.__type__ === 'cc.Scene')
+            return ele;
+    });
+    var tempData = [];
+    tempData.push(mergeData[0]);
+    recurseChild(scene, mergeData).forEach(function (obj) {
+        tempData.push(obj);
+    });
+    
+    return tempData;
+}
+
+function recurseChild (node, mergeData) {
+    var record, result = [];
+    result.push(node);
+    if (node.content._children.length < 0) {
+        return result;
+    }
+    node.content._children.forEach(function (child) {
+        console.log(child);
+        for (let i = 0; i < mergeData.length; i++) {
+            if (mergeData[i].mark === child.__id__) {
+                record = recurseChild (mergeData[i], mergeData);
+                for (let j = 0; j < record.length; j++){
+                    result.push(record[j]);
+                }
+                break;
+            }
+        }
+    });    
+
+    return result;
+}
+
+function indexToMark (tempData) {
     tempData.forEach(function (obj) {
         obj.data = locationId(obj, tempData);
     });
@@ -262,15 +359,14 @@ function locationId (obj, tempData) {
     var str = JSON.stringify(obj.data, null, '\t');
     str = str.replace(/"__id__": ([0-9]+)/g, function (match, index) {
         var mark = '';
+        var clickEvent = tempData[index];
         // the clickevent is little special did have any message contect to the user
-        if (tempData[index].data.__type__ === 'cc.ClickEvent') {
+        if (clickEvent.data.__type__ === 'cc.ClickEvent') {
             // sort out the clickEvent's mark
             var _id = obj.mark.split('-')[2];
             var _name = obj.mark.split('-')[1];
-
-            var clickEvent = tempData[index];
             mark = `clickEvent-${_name}-${_id}-${clickEvent.data.__type__}`;
-            clickEvent.mark = mark; 
+            clickEvent.mark = mark;
         }
         else {
             mark = getMark(tempData, parseInt(index));
@@ -283,9 +379,13 @@ function locationId (obj, tempData) {
 }
 
 function markToIndex (tempData) {
+    var data = [];
     tempData.forEach(function (obj) {
-        obj._properties = locationIndex(obj._properties, tempData);
+        obj = locationIndex(obj.content, tempData);
+        data.push(obj)
     });
+    
+    return data;
 }
 
 function locationIndex (objData, tempData) {
@@ -312,11 +412,11 @@ function getMark (array, index) {
     });
     return obj.mark;
 }
-
+// compare function
 function compareById (a, b) {
     return a._id.localeCompare(b._id);
 }
 
 function compareByName (a, b) {
-    return a.mark > b.mark;
+    return a.mark.localeCompare(b.mark);
 }
