@@ -18,6 +18,13 @@
   },
   "smartMerge": {
     "dependMergeTool": "D:/KDiff3/kdiff3.exe"
-  }
+  },
+  "bin": {
+    "merge": "./merge.js"
+  },
+  "bugs": {
+    "url": "https://github.com/ColinCollins/smart-merge/issues"
+  },
+  "readmeFilename": "README.md"
 }
   

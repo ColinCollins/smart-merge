@@ -46,6 +46,7 @@ var fireFiles = {
             compareFiles.push(args[i]);
         }
         compareForMerge(config.dependMergeTool, compareFiles, merge);
+        coverFile(merge, dir);
     }
     return;
 })();
@@ -84,18 +85,18 @@ function resolveData (rawData, tempData) {
                 mark = 'fileHeader';
                 break;
             case 'cc.Scene':
-                mark = `scene-${rawData[i]._id}`;
+                mark = `${rawData[i].__type__}-${rawData[i]._id}`;
                 break;
             case 'cc.PrivateNode':
             case 'cc.Node':
-                mark = `node-${rawData[i]._name}-${rawData[i]._id}`;
+                mark = `${rawData[i].__type__}-${rawData[i]._name}-${rawData[i]._id}`;
                 break;
             case 'cc.PrefabInfo':
-                mark = `prefabInfo-${rawData[i].fileId}`;
+                mark = `${rawData[i].__type__}-${rawData[i].fileId}`;
                 break;
             case 'cc.ClickEvent':
                 // did not get the special and only can be find by comp
-                makr = `clickEvent-${rawData[i].__type__}`;
+                makr = `${rawData[i].__type__}`;
                 break;
             default: 
                 // there is the component contain the custome and the office componet
