@@ -78,38 +78,58 @@ function dumpSortFireFiles(originFile, sortNorm) {
 
 function resolveData (rawData, tempData) {
     for (let i = 0; i < rawData.length; i++) {
-        var mark = '';
-        // create the mark id, there maybe need change or make a model to other file as a import.
+        var __id__ = '';
+        // create the __id__ id, there maybe need change or make a model to other file as a import.
         switch (rawData[i].__type__) {
             case 'cc.SceneAsset':
-                mark = 'fileHeader';
+                __id__ = {
+                    type: "fileHeader"
+                };
                 break;
             case 'cc.Scene':
-                mark = `${rawData[i].__type__}-${rawData[i]._id}`;
+                __id__ = {
+                    type: `${rawData[i].__type__}`,
+                    _id: `${rawData[i]._id}`
+                };
                 break;
             case 'cc.PrivateNode':
             case 'cc.Node':
-                mark = `${rawData[i].__type__}-${rawData[i]._name}-${rawData[i]._id}`;
+                __id__ = {
+                    type: `${rawData[i].__type__}`, 
+                    name: `${rawData[i]._name}`, 
+                    _id: `${rawData[i]._id}`
+                };
                 break;
             case 'cc.PrefabInfo':
-                mark = `${rawData[i].__type__}-${rawData[i].fileId}`;
+                __id__ = {
+                    type: `${rawData[i].__type__}`, 
+                    fileId: `${rawData[i].fileId}`
+                };
                 break;
             case 'cc.ClickEvent':
                 // did not get the special and only can be find by comp
-                makr = `${rawData[i].__type__}`;
+                __id__ = {
+                    type: `${rawData[i].__type__}`
+                };
                 break;
             default: 
                 // there is the component contain the custome and the office componet
                 var nodeIndex = '';
-                console.log(rawData[i].__type__);
+                //console.log(rawData[i].__type__);
                 nodeIndex = rawData[i].node.__id__;
-                mark = `comp-${rawData[nodeIndex]._name}-${rawData[nodeIndex]._id}-${rawData[i].__type__}`;
+                __id__ = {
+                    type: `Comp`, 
+                    name: `${rawData[nodeIndex]._name}`,
+                    _id: `${rawData[nodeIndex]._id}`, 
+                    OwnType: `${rawData[i].__type__}`
+                };
                 break;
         }
+        __id__ = JSON.stringify(__id__);
         var branch = {
             index: i,
             type: rawData[i].__type__,
-            mark: mark,
+            __id__: __id__,
             data: rawData[i]
         };
         tempData.push(branch);
@@ -125,14 +145,14 @@ function groupingData (tempData, filesPos) {
                 var node = {
                     _id:obj.data._id,
                     prefab: obj.data._prefab,
-                    mark: obj.mark,
+                    __id__: obj.__id__,
                     _properties: obj.data
                 };
                 filesPos.nodes.push(node);
                 break;
             case 'cc.PrefabInfo':
                 var info = {
-                    mark: obj.mark,
+                    __id__: obj.__id__,
                     _properties: obj.data
                 }
                 filesPos.prefabInfos.push(info);
@@ -147,8 +167,8 @@ function groupingData (tempData, filesPos) {
                     node = obj.data.node.__id__;
                 }
                 var component = {
-                    node: node, // node mark correspond mark 
-                    mark: obj.mark,
+                    node: node, // node __id__ correspond __id__ 
+                    __id__: obj.__id__,
                     _properties: obj.data
                 };
                 filesPos.components.push(component);
@@ -194,7 +214,7 @@ function createModel (filePos) {
     var model = [];
     // header
     var header = {
-        mark: filePos.sceneHeader.__type__,
+        __id__: filePos.sceneHeader.__type__,
         content: filePos.sceneHeader
     };
     model.push(header);
@@ -203,7 +223,7 @@ function createModel (filePos) {
         obj._properties._components = [];
         obj._properties._prefab = null;
         var node = {
-            mark: obj.mark,
+            __id__: `${obj.__id__}`,
             content: obj._properties,
             _components: [],
             _prefabInfos: [],
@@ -211,19 +231,19 @@ function createModel (filePos) {
         }
         // comp there has been sort
         filePos.components.forEach(function (comp) {
-            var compMark = comp.mark;
-            var parse = compMark.split('-'); 
-            if (parse[2] == obj._id) {
-                if (parse[3] == 'cc.ClickEvent') {
+            var compMark = comp.__id__;
+            var parse = JSON.parse(compMark); 
+            if (parse._id == obj._id) {
+                if (parse.OwnType == 'cc.ClickEvent') {
                     node._clickEvent.push({
-                        mark: comp.mark,
+                        __id__: compMark,
                         content: comp._properties
                     });
                 } 
                 else {
                     comp._properties.node = {};
                     node._components.push({
-                        mark: comp.mark,
+                        __id__: compMark,
                         content: comp._properties
                     });
                 }
@@ -232,10 +252,10 @@ function createModel (filePos) {
         // prefab
         if (obj.prefab) {
             filePos.prefabInfos.forEach(function (info) {
-                if (obj.prefab.__id__ == info.mark) {
+                if (obj.prefab.__id__ == info.__id__) {
                     info._properties.root = {};
                     node._prefabInfos.push({
-                        mark: info.mark,
+                        __id__: `${info.__id__}`,
                         content: info._properties
                     });
                 }
@@ -279,7 +299,7 @@ function transToNormal (mergeData) {
     mergeData = sortForTree(mergeData);
     mergeData.forEach(function (obj) {
         tempData.push({
-            mark: obj.mark,
+            __id__: obj.__id__,
             content: obj.content
         });
 
@@ -287,28 +307,28 @@ function transToNormal (mergeData) {
             return;
         }
         for (let i = 0; i < obj._components.length; i++) {
-            obj._components[i].content.node.__id__ = obj.mark;
+            obj._components[i].content.node.__id__ = obj.__id__;
             tempData.push({
-                mark: obj._components[i].mark,
+                __id__: obj._components[i].__id__,
                 content: obj._components[i].content
             });
             obj.content._components.push({
-                __id__: obj._components[i].mark
+                __id__: obj._components[i].__id__
             });
         }
         if (obj._prefabInfos.length > 0) {
-            obj._prefabInfos[0].content.root.__id__ = obj.mark;
+            obj._prefabInfos[0].content.root.__id__ = obj.__id__;
             tempData.push({
-                mark: obj._prefabInfos[0].mark,
+                __id__: obj._prefabInfos[0].__id__,
                 content: obj._prefabInfos[0].content
             });
             obj.content._prefab = {
-                __id__: obj._prefabInfos[0].mark
+                __id__: obj._prefabInfos[0].__id__
             };
         }
         for (let k = 0; k < obj._clickEvent.length; k++) {
             tempData.push({
-                mark: obj._clickEvent[k].mark,
+                __id__: obj._clickEvent[k].__id__,
                 content: obj._clickEvent[k].content
             });
         }
@@ -341,7 +361,7 @@ function recurseChild (node, mergeData) {
     }
     node.content._children.forEach(function (child) {
         for (let i = 0; i < mergeData.length; i++) {
-            if (mergeData[i].mark === child.__id__) {
+            if (mergeData[i].__id__ === child.__id__) {
                 record = recurseChild (mergeData[i], mergeData);
                 for (let j = 0; j < record.length; j++){
                     result.push(record[j]);
@@ -363,20 +383,28 @@ function indexToMark (tempData) {
 function locationId (obj, tempData) {
     var str = JSON.stringify(obj.data, null, '\t');
     str = str.replace(/"__id__": ([0-9]+)/g, function (match, index) {
-        var mark = '';
+        var __id__ = '';
         var clickEvent = tempData[index];
         // the clickevent is little special did have any message contect to the user
         if (clickEvent.data.__type__ === 'cc.ClickEvent') {
-            // sort out the clickEvent's mark
-            var _id = obj.mark.split('-')[2];
-            var _name = obj.mark.split('-')[1];
-            mark = `clickEvent-${_name}-${_id}-${clickEvent.data.__type__}`;
-            clickEvent.mark = mark;
+            // sort out the clickEvent's __id__
+            var parse = JSON.parse(obj.__id__, null, '\t');
+            var _id = parse._id;
+            var _name = parse.name;
+            __id__ = {
+                type: "ClickEvent", 
+                name: `${_name}`,
+                _id: `${_id}`, 
+                OwnType: `${clickEvent.data.__type__}`
+            };
+            __id__ = JSON.stringify(__id__);
+            clickEvent.__id__ = __id__;
         }
         else {
-            mark = getMark(tempData, parseInt(index));
+            __id__ = getMark(tempData, parseInt(index));
         }
-        return `"__id__": "${mark}"`;
+        // JSON type file want to get the str must use the stringify
+        return `"__id__": ${JSON.stringify(__id__)}`;
     });
     obj.data = JSON.parse(str);
 
@@ -394,11 +422,12 @@ function markToIndex (tempData) {
 }
 
 function locationIndex (objData, tempData) {
-    // must the node sort first, or will lost the mark
+    // must the node sort first, or will lost the __id__
     var str = JSON.stringify(objData, null, '\t');
-    str = str.replace(/"__id__": "([\S ]+)"/g, function (match, mark) {
+    str = str.replace(/"__id__": "([\S ]+)"/g, function (match, __id__) {
         var index = tempData.findIndex(function (ele) {
-            if (mark === ele.mark) {
+            // parse is to make the obj become the str
+            if (`"${__id__}"` === JSON.stringify(ele.__id__)) {
                 return ele;
             }
         });
@@ -415,7 +444,7 @@ function getMark (array, index) {
             return ele;
         }
     });
-    return obj.mark;
+    return obj.__id__;
 }
 // compare function
 function compareById (a, b) {
@@ -423,5 +452,5 @@ function compareById (a, b) {
 }
 
 function compareByName (a, b) {
-    return a.mark.localeCompare(b.mark);
+    return a.__id__.localeCompare(b.__id__);
 }
