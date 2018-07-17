@@ -7,8 +7,8 @@ const cover = require('./coverMerge');
 
 var fireFiles = {
     base: {},
-    remote: {},
-    local: {}
+    local: {},
+    remote: {}
 };
 
 (function () {
@@ -26,9 +26,8 @@ var fireFiles = {
 
     if (projectPath.ext === '.fire') {
         fireFiles.base = dumpSortFireFiles(args[2], args[5]); // base
-        fireFiles.remote = dumpSortFireFiles(args[3], args[5]) // remote
-        fireFiles.local = dumpSortFireFiles(args[4], args[5]); // local
-       
+        fireFiles.local = dumpSortFireFiles(args[3], args[5]); // local
+        fireFiles.remote = dumpSortFireFiles(args[4], args[5]); // remote
         // design the path that can be read
         if (!fs.existsSync(dir)) {
             console.error('Destination path is not available.')
@@ -39,7 +38,7 @@ var fireFiles = {
         // depend tool setting in the project.json, you must have to save the merge file
         compareForMerge(config.dependMergeTool, compareFiles, merge);
         
-        var name = getName(fireFiles.base.name);
+        var name = getFileName(fireFiles.base.name);
         // resort the merge to the scene fire
         cover.coverFile(merge, dir, name);
     }
@@ -80,61 +79,56 @@ function dumpSortFireFiles(originFile, sortNorm) {
 }
 
 function resolveData (rawData, tempData) {
+    var compAssemblyData = {};
     for (let i = 0; i < rawData.length; i++) {
         var __id__ = '';
-        // create the __id__ id, there maybe need change or make a model to other file as a import.
+        var _id = '';
         switch (rawData[i].__type__) {
             case 'cc.SceneAsset':
-                __id__ = {
-                    type: "fileHeader"
-                };
+                __id__ = `${rawData[i].__type__}: fileHeader`;
                 break;
             case 'cc.Scene':
-                __id__ = {
-                    type: `${rawData[i].__type__}`,
-                    _id: `${rawData[i]._id}`
-                };
+                __id__ = `${rawData[i].__type__}: Scene, id: ${rawData[i]._id}`;
                 break;
             case 'cc.PrivateNode':
             case 'cc.Node':
-                __id__ = {
-                    type: `${rawData[i].__type__}`, 
-                    name: `${rawData[i]._name}`, 
-                    _id: `${rawData[i]._id}`
-                };
+                __id__ = `${rawData[i].__type__}: ${rawData[i]._name}, id: ${rawData[i]._id}`;
+                _id = rawData[i]._id;
                 break;
             case 'cc.PrefabInfo':
-                __id__ = {
-                    type: `${rawData[i].__type__}`, 
-                    fileId: `${rawData[i].fileId}`
-                };
+                __id__ = `${rawData[i].__type__}: ${rawData[i].fileId}`;
                 break;
             case 'cc.ClickEvent':
                 // did not get the special and only can be find by comp
-                __id__ = {
-                    type: `${rawData[i].__type__}`
-                };
+                __id__ = `${rawData[i].__type__}`;
                 break;
             default: 
                 // there is the component contain the custome and the office componet
                 var nodeIndex = '';
-                //console.log(rawData[i].__type__);
                 nodeIndex = rawData[i].node.__id__;
-                __id__ = {
-                    type: `Comp`, 
-                    name: `${rawData[nodeIndex]._name}`,
-                    _id: `${rawData[nodeIndex]._id}`, 
-                    OwnType: `${rawData[i].__type__}`
-                };
+                __id__ = `Comp: ${rawData[i].__type__}, Node: ${rawData[nodeIndex]._name}(${rawData[nodeIndex]._id})`;
+                if (Object.keys(compAssemblyData).includes(__id__) > 0) {
+                    compAssemblyData[__id__]++;
+                    __id__ = `Comp: ${rawData[i].__type__}, Node: ${rawData[nodeIndex]._name}(${rawData[nodeIndex]._id}), index: ${compAssemblyData[__id__]}`;
+                }
+                else {
+                    compAssemblyData[__id__] = 1;
+                }
+                _id = rawData[nodeIndex]._id;
                 break;
         }
-        __id__ = JSON.stringify(__id__);
+
         var branch = {
             index: i,
+            name: rawData[i]._name,
             type: rawData[i].__type__,
             __id__: __id__,
             data: rawData[i]
         };
+        // save the node _id
+        if (_id !== null) {
+            branch._id = _id;
+        }
         tempData.push(branch);
     }
 }
@@ -164,14 +158,14 @@ function groupingData (tempData, filesPos) {
                 filesPos.sceneHeader = obj.data;
                 break;
             default :
-                // all components 
                 var node = '';
                 if (obj.data.node) {
                     node = obj.data.node.__id__;
                 }
                 var component = {
-                    node: node, // node __id__ correspond __id__ 
+                    node: node,
                     __id__: obj.__id__,
+                    _id: obj._id,
                     _properties: obj.data
                 };
                 filesPos.components.push(component);
@@ -185,25 +179,24 @@ function outputFiles (destinationPath) {
 
     var modelBase, modelRemote, modelLocal;
     modelBase = createModel(fireFiles.base);
-    modelRemote = createModel(fireFiles.remote);
     modelLocal = createModel(fireFiles.local);
+    modelRemote = createModel(fireFiles.remote);
     
     var compareFold = path.join(destinationPath, '/MergeCache');
     // add the clear the destination fold.
     if (fs.existsSync(compareFold))
         del.sync(compareFold + '/**', {force: true});
 
-    // create the fold of conflict fire
     fs.mkdirSync(compareFold);
     fs.writeFileSync(compareFold + `/${name}Base.json`, modelBase, {
         encoding: 'utf8',
         flag: 'w'
     });
-    fs.writeFileSync(compareFold + `/${name}Remote.json`, modelRemote, {
+    fs.writeFileSync(compareFold + `/${name}Local.json`, modelLocal, {
         encoding: 'utf8',
         flag: 'w'
     });
-    fs.writeFileSync(compareFold + `/${name}Loacl.json`, modelLocal, {
+    fs.writeFileSync(compareFold + `/${name}Remote.json`, modelRemote, {
         encoding: 'utf8',
         flag: 'w'
     });
@@ -231,38 +224,39 @@ function createModel (filePos) {
             _components: [],
             _prefabInfos: [],
             _clickEvent: []
-        }
+        };
         // comp there has been sort
-        filePos.components.forEach(function (comp) {
-            var compMark = comp.__id__;
-            var parse = JSON.parse(compMark); 
-            if (parse._id == obj._id) {
-                if (parse.OwnType == 'cc.ClickEvent') {
+        for(let i = 0; i < filePos.components.length; i++) {
+            var comp = filePos.components[i];
+            if (comp._id == obj._id) {
+                if (comp._properties.__type__ == 'cc.ClickEvent') {
                     node._clickEvent.push({
-                        __id__: compMark,
+                        __id__: comp.__id__,
                         content: comp._properties
                     });
                 } 
                 else {
-                    comp._properties.node = {};
+                    comp._properties.node = undefined;
                     node._components.push({
-                        __id__: compMark,
+                        __id__: comp.__id__,
                         content: comp._properties
                     });
                 }
             }
-        });
+        };
         // prefab
         if (obj.prefab) {
-            filePos.prefabInfos.forEach(function (info) {
+            for (let i = 0; i < filePos.prefabInfos.length; i++) {
+                var info = filePos.prefabInfos[i];
                 if (obj.prefab.__id__ == info.__id__) {
-                    info._properties.root = {};
+                    info._properties.root = undefined;
                     node._prefabInfos.push({
-                        __id__: `${info.__id__}`,
+                        __id__: info.__id__,
                         content: info._properties
                     });
+                    break;
                 }
-            });
+            }
         }
         model.push(node);
     });
@@ -272,10 +266,10 @@ function createModel (filePos) {
 
 function compareForMerge (toolPath, compareFiles, merge) {
     var base = compareFiles[0];
-    var remote = compareFiles[1];
-    var local = compareFiles[2];  
+    var local = compareFiles[1];
+    var remote = compareFiles[2];
 
-    execFileSync(toolPath, [base, remote, local, '-o', merge]);
+    execFileSync(toolPath, [base, local, remote, '-o', merge]);
 }
 
 function indexToMark (tempData) {
@@ -287,28 +281,20 @@ function indexToMark (tempData) {
 function locationId (obj, tempData) {
     var str = JSON.stringify(obj.data, null, '\t');
     str = str.replace(/"__id__": ([0-9]+)/g, function (match, index) {
-        var __id__ = '';
+        var __id__ = ''; 
         var clickEvent = tempData[index];
         // the clickevent is little special did have any message contect to the user
         if (clickEvent.data.__type__ === 'cc.ClickEvent') {
-            // sort out the clickEvent's __id__
-            var parse = JSON.parse(obj.__id__, null, '\t');
-            var _id = parse._id;
-            var _name = parse.name;
-            __id__ = {
-                type: "ClickEvent", 
-                name: `${_name}`,
-                _id: `${_id}`, 
-                OwnType: `${clickEvent.data.__type__}`
-            };
-            __id__ = JSON.stringify(__id__);
+            var _id = obj._id;
+            var _name = obj.name;
+            __id__ = `ClickEvent: ${obj.name}, Comp ${_name}(${_id})`;
             clickEvent.__id__ = __id__;
+            clickEvent._id = _id;
         }
         else {
             __id__ = getMark(tempData, parseInt(index));
         }
-        // JSON type file want to get the str must use the stringify
-        return `"__id__": ${JSON.stringify(__id__)}`;
+        return `"__id__": "${__id__}"`;
     });
     obj.data = JSON.parse(str);
 
@@ -324,14 +310,15 @@ function getMark (array, index) {
     return obj.__id__;
 }
 
-function getName (tempName) {
+function getFileName (tempName) {
     var spell = tempName.split('_');
-    var name = '';
+    var words = [];
     for(let i = 0; i < spell.length; i++) {
         if (spell[i] === 'BASE') {
+            var name = words.join('_');
             return name;
         }
-        name = name.concat(spell[i]);
+        words.push(spell[i]);
     }
 }
 // compare function
