@@ -6,8 +6,7 @@ module.exports = {
     coverFile: function (tempFile, savePath, name) {
         // resort the index; tempFile is json file
         var merge = fs.readFileSync(tempFile, {encoding: 'utf8'});
-        var data = JSON.parse(merge);
-        
+        var data = JSON.parse(merge); 
         // sort and create new array 
         var result = this.transToNormal(data);
     
@@ -64,7 +63,6 @@ module.exports = {
                 });
             }
         });
-
         var result = this.markToIndex(tempData);
 
         return result;
@@ -88,7 +86,8 @@ module.exports = {
         var _self = this;
         var record, result = [];
         result.push(node);
-        if (node.content._children.length < 0) {
+
+        if (!node.content._children || node.content._children.length < 0) {
             return result;
         }
         node.content._children.forEach(function (child) {

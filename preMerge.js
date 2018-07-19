@@ -35,11 +35,9 @@ var fireFiles = {
         }
         // create the compare files, the files ext is the json
         compareFiles = outputFiles(dir);
-        // depend tool setting in the project.json, you must have to save the merge file
         compareForMerge(config.dependMergeTool, compareFiles, merge);
-        
+
         var name = getFileName(fireFiles.base.name);
-        // resort the merge to the scene fire
         cover.coverFile(merge, dir, name);
     }
     else {
