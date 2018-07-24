@@ -16,9 +16,6 @@
     "del": "^3.0.0",
     "globby": "^8.0.1"
   },
-  "smartMerge": {
-    "dependMergeTool": "D:/KDiff3/kdiff3.exe"
-  },
   "bin": {
     "merge": "./merge.js"
   },
@@ -27,4 +24,3 @@
   },
   "readmeFilename": "README.md"
 }
-  
