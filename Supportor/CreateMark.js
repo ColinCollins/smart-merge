@@ -1,4 +1,4 @@
-const _type = require('../enums');
+const type = require('../enums');
 
 var createMark = {
     // return back
@@ -9,36 +9,36 @@ var createMark = {
     // record the component name if there are some same components
     compAssemblyData: {},
 
-    createSceneAssetId: function (type) {
-        this.result.__id__ = `${type}: fileHeader`;
+    createSceneAssetId: function (_type) {
+        this.result.__id__ = `${_type}: fileHeader`;
         this.result._id = '';
     },
     
-    createSceneId: function (type, _id) {
-        this.result.__id__ = `${type}: Scene, id: ${_id}`;
+    createSceneId: function (_typee, _id) {
+        this.result.__id__ = `${_type}: Scene, id: ${_id}`;
         this.result._id = '';
     },
     
-    createNodeId: function (type, _id, name) {
-        this.result.__id__ = `${type}: ${name}, id: ${_id}`;
+    createNodeId: function (_type, _id, name) {
+        this.result.__id__ = `${_type}: ${name}, id: ${_id}`;
         this.result._id = _id;
     },
 
-    createPrefabInfo: function (type, fileId) {
-        this.result.__id__ = `${type}: ${fileId}`;
+    createPrefabInfo: function (_type, fileId) {
+        this.result.__id__ = `${_type}: ${fileId}`;
         this.result._id = '';
     },
 
-    createClickEvent: function (type) {
-        this.result.__id__ = `${type}`;
+    createClickEvent: function (_type) {
+        this.result.__id__ = `${_type}`;
         this.result._id = '';
     },
 
-    createComponent: function (node, type) {
-        this.result.__id__ = `${_type.comp}: ${type}, Node: ${node._name}(${node._id})`;
+    createComponent: function (node, _type) {
+        this.result.__id__ = `${type.comp}: ${_type}, Node: ${node._name}(${node._id})`;
         if (Object.keys(this.compAssemblyData).includes(this.result.__id__) > 0) {
             this.compAssemblyData[this.result.__id__]++;
-            this.result.__id__ = `${_type.comp}: ${type}, Node: ${node._name}(${node._id}), index: ${this.compAssemblyData[this.result.__id__]}`;
+            this.result.__id__ = `${type.comp}: ${_type}, Node: ${node._name}(${node._id}), index: ${this.compAssemblyData[this.result.__id__]}`;
         }
         else {
             this.compAssemblyData[this.result.__id__] = 0;
@@ -47,10 +47,10 @@ var createMark = {
     },
 
     createCustemEvent: function () {
-        this.result.__id__ = _type.custom;
+        this.result.__id__ = type.custom;
         if (Object.keys(this.compAssemblyData).includes(this.result.__id__) > 0) {
             this.compAssemblyData[this.result.__id__]++;
-            this.result.__id__ = `${_type.custom}, index: ${this.compAssemblyData[this.result.__id__]}`;
+            this.result.__id__ = `${type.custom}, index: ${this.compAssemblyData[this.result.__id__]}`;
         }
         else {
             this.compAssemblyData[this.result.__id__] = 0;

@@ -3,9 +3,10 @@ const path = require('path');
 const fs = require('fs');
 const del = require('del');
 const { execFileSync } = require('child_process');
-const cover = require('./coverMerge');
-const type = require('./enums');
-const pipe = require('./mergePipe');
+const cover = require('./CoverMerge');
+const type = require('./Supportor/enums');
+const pipe = require('./Supportor/MergePipe');
+const convert = require('./Supportor/IdConverter');
 
 var config = JSON.parse(fs.readFileSync('./mergeConfig.json', {encoding: 'utf8'}));
 var fireFiles = {
@@ -41,7 +42,6 @@ var fireFiles = {
         cover.coverFile(merge, dir, name);
     }
     else {
-        // if is not fire file conflict
         for (let i = 2; i < args.length - 1; i++) {
             compareFiles.push(args[i]);
         }
@@ -67,7 +67,7 @@ function dumpSortFireFiles(originFile) {
     }
 
     resolveData(rawData, tempData);
-    indexToMark(tempData);
+    convert.indexToMark(tempData);
     groupingData(tempData, filesPos);
 
     filesPos.nodes.sort(compareByName);
@@ -76,7 +76,7 @@ function dumpSortFireFiles(originFile) {
 }
 
 function resolveData (rawData, tempData) {
-    let handler = require('./Support/CreateMark');
+    let handler = require('./Supportor/CreateMark');
     for (let i = 0; i < rawData.length; i++) {
         switch (rawData[i].__type__) {
             case type.sceneAsset:
@@ -113,42 +113,22 @@ function resolveData (rawData, tempData) {
 }
 
 function groupingData (tempData, filesPos) {
+    let handler = require('./Supportor/Grouping');
     tempData.forEach(function (obj) {
         switch(obj.type) {
             case type.scene:
             case type.privateNode:
             case type.node:
-                var node = {
-                    _id:obj.data._id,
-                    prefab: obj.data._prefab,
-                    __id__: obj.__id__,
-                    _properties: obj.data
-                };
-                filesPos.nodes.push(node);
+                handler.Divide2Nodes(obj, filesPos);
                 break;
             case type.prefabInfo:
-                var info = {
-                    __id__: obj.__id__,
-                    _properties: obj.data
-                }
-                filesPos.prefabInfos.push(info);
+                handler.Divide2PrefabInfos(obj, filesPos);
                 break;
             case type.sceneAsset:
-                filesPos.sceneHeader = obj.data;
+                handler.Divide2SceneAsset(obj, filesPos);
                 break;
             default :
-                var node = '';
-                if (obj.data.node) {
-                    node = obj.data.node.__id__;
-                }
-                var component = {
-                    node: node,
-                    __id__: obj.__id__,
-                    // _id is belong to node
-                    _id: obj._id,
-                    _properties: obj.data
-                };
-                filesPos.components.push(component);
+                handler.Divide2Components(obj, filesPos);
                 break;
         }
     });
@@ -204,7 +184,7 @@ function createModel (filePos) {
     // node
     filePos.nodes.forEach(function (obj) {
         obj._properties._components = [];
-        obj._properties._prefab = null;
+        obj._properties._prefab = undefined;
         var node = {
             __id__: `${obj.__id__}`,
             content: obj._properties,
@@ -212,41 +192,11 @@ function createModel (filePos) {
             _prefabInfos: [],
             _clickEvent: []
         };
-        // comp there has been sort
-        for(let i = 0; i < filePos.components.length; i++) {
-            var comp = filePos.components[i];
-            if (comp._id == obj._id) {
-                if (comp._properties.__type__ == type.clickEvent) {
-                    node._clickEvent.push({
-                        __id__: comp.__id__,
-                        content: comp._properties
-                    });
-                } 
-                else {
-                    comp._properties.node = undefined;
-                    node._components.push({
-                        __id__: comp.__id__,
-                        content: comp._properties
-                    });
-                }
-            }
-        };
-        // prefab
-        if (obj.prefab) {
-            for (let i = 0; i < filePos.prefabInfos.length; i++) {
-                var info = filePos.prefabInfos[i];
-                if (obj.prefab.__id__ == info.__id__) {
-                    info._properties.root = undefined;
-                    node._prefabInfos.push({
-                        __id__: info.__id__,
-                        content: info._properties
-                    });
-                    break;
-                }
-            }
-        }
+        componentModel(node, obj, filePos);
+        prefabInfoModel(node, obj, filePos);
         model.push(node);
     });
+    
     return model;
 }
 
@@ -258,52 +208,47 @@ function compareForMerge (toolPath, compareFiles, merge) {
     execFileSync(toolPath, [base, local, remote, '-o', merge]);
 }
 
-function indexToMark (tempData) {
-    tempData.forEach(function (obj) {
-        obj.data = locationId(obj, tempData);
-    });
+function componentModel (node, obj, filePos) {
+    for (let i = 0; i < filePos.components.length; i++) {
+        var comp = filePos.components[i];
+        if (comp._id == obj._id) {
+            if (comp._properties.__type__ == type.clickEvent) {
+                node._clickEvent.push({
+                    __id__: comp.__id__,
+                    content: comp._properties
+                });
+            } 
+            else {
+                comp._properties.node = undefined;
+                node._components.push({
+                    __id__: comp.__id__,
+                    content: comp._properties
+                });
+            }
+        }
+    };
 }
 
-function locationId (obj, tempData) {
-    var str = JSON.stringify(obj.data, null, '\t');
-    str = str.replace(/"__id__": ([0-9]+)/g, function (match, index) {
-        var __id__ = ''; 
-        var target = tempData[index];
-        var _id = obj._id;
-        var _name = obj.name;
-        if (target.data.__type__ === type.clickEvent) {    
-            __id__ = `${type.clickEvent}: ${obj.name}, Comp ${_name}(${_id})`;
-            target.__id__ = __id__;
-            target._id = _id;
-        }
-        else if (target.__id__ && target.__id__.includes(type.custom)) {
-            __id__ = getMark(tempData, parseInt(index));
-            target._id = _id;
-        }
-        else {
-            __id__ = getMark(tempData, parseInt(index));
-        }
+function prefabInfoModel (node, obj, filePos) {
+    if (!obj.prefab) return;
 
-        return `"__id__": "${__id__}"`;
-    });
-    obj.data = JSON.parse(str);
-
-    return obj.data;
-}
-
-function getMark (array, index) {
-    var obj = array.find(function (ele) {
-        if (ele.index === index) {
-            return ele;
+    for (let i = 0; i < filePos.prefabInfos.length; i++) {
+        var info = filePos.prefabInfos[i];
+        if (obj.prefab.__id__ == info.__id__) {
+            info._properties.root = undefined;
+            node._prefabInfos.push({
+                __id__: info.__id__,
+                content: info._properties
+            });
+            break;
         }
-    });
-    return obj.__id__;
+    }
 }
 
 function getFileName (tempName) {
     var spell = tempName.split('_');
     var words = [];
-    for(let i = 0; i < spell.length; i++) {
+    for (let i = 0; i < spell.length; i++) {
         if (spell[i] === 'BASE') {
             var name = words.join('_');
             return name;

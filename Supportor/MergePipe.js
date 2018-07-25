@@ -4,24 +4,53 @@ var pipe = {
     remote: [],
 }
 
-function replaceData (dataName, branch, type) {
+function replaceData (type, dataName, branch) {
     var mainData = choiceMainBranch(branch);
 
     if (type === 'Node') {
-        mainData[0].forEach(function (data, index) {
-            if (!data.content[dataName]) {
-                if (dataName === '__id__') {
-                    mainData[1] && replaceId(mainData[1], data, index);
-                    mainData[2] && replaceId(mainData[2], data, index);
-                }
-                return;
-            }
-            mainData[1] && replaceContent(mainData[1], data, index, dataName);
-            mainData[2] && replaceContent(mainData[2], data, index, dataName);
-        });
+        partOfNode(mainData, dataName);
     }
     else {
-        mainData[0].forEach(function (data, index1) {
+        partOfDefault(mainData, dataName, type);
+    } 
+}
+/**
+ * only replace the data. 
+ * @param {Array} tempData - currect target to  be replaced  by the data
+ * @param {Object} mainData - as the replacement data
+ * @param {Object} mainData.content - the whole data content about the data
+ * @param {String} mainData.__id__ - the uniquely identifies
+ * @param {Number} index - locate the same position target
+ * @param {String} dataName - prototype 
+ */
+function replaceContent (tempData, mainData, index, dataName) {
+    if (checkContentReplaceable(tempData[index], mainData, dataName)) {
+        tempData[index].content[dataName] = mainData.content[dataName];
+    }
+}
+
+function replaceId (tempData, mainData, index) {
+    if (checkIdReplaceable(tempData[index], mainData)) {
+        tempData[index].__id__ = mainData.__id__;
+    }
+}
+
+function partOfNode (mainData, dataName) {
+    mainData[0].forEach(function (data, index) {
+        if (!data.content[dataName]) {
+            if (dataName === '__id__') {
+                mainData[1] && replaceId(mainData[1], data, index);
+                mainData[2] && replaceId(mainData[2], data, index);
+            }
+            return;
+        }
+        mainData[1] && replaceContent(mainData[1], data, index, dataName);
+        mainData[2] && replaceContent(mainData[2], data, index, dataName);
+    });
+}
+// this part container component, prefabInfo, clickEvent, custome
+function partOfDefault (mainData, dataName, type) {
+    mainData[0].forEach(function (data, index1) {
         if (!data[type]) {
             return;
         }
@@ -37,32 +66,11 @@ function replaceData (dataName, branch, type) {
             }
                 data1 && replaceContent(data1[type], obj, index2, dataName);
                 data2 && replaceContent(data2[type], obj, index2, dataName);
-            });
         });
-    } 
-}
-/**
- * only replace the data. 
- * @param {Array} tempData1 
- * @param {Array} tempData2 
- * @param {Object} mainData
- * @param {Object} mainData.content
- * @param {String} mainData.__id__
- * @param {Number} index 
- * @param {String} dataName 
- */
-function replaceContent (tempData, mainData, index, dataName) {
-    if (checkContentReplaceable(tempData[index], mainData, dataName)) {
-        tempData[index].content[dataName] = mainData.content[dataName];
-    }
+    });
 }
 
-function replaceId (tempData, mainData, index) {
-    if (checkIdReplaceable(tempData1[index], mainData)) {
-        tempData[index].__id__ = mainData.__id__;
-    }
-}
-// return a array the main branch will set in the first place.
+// Return a array and the main branch will set in the first place.
 function choiceMainBranch (branch) {
     var dataArray = [];
     switch(branch) {
@@ -112,8 +120,7 @@ function checkContentReplaceable (tempData, mainData, dataName) {
 function checkIdReplaceable (tempData, mainData) {
     if (!tempData) {
         return false;
-    }
-    
+    }   
     if (tempData.content.__type__ !== mainData.content.__type__) {
         return false;
     }
@@ -121,17 +128,17 @@ function checkIdReplaceable (tempData, mainData) {
     if (tempData.content._name !== mainData.content._name) {
         return false;
     }
+
     return true;
 }
 
 /**
- * @param {Array} branchData It is currect branch model data.
- * @param {Object} config It is the config that you want to replace branch.
- * @param {String} config.dataType It is the data type that can help you find the target exactly.
- * @param {String} config.dataName It is the prototype name that you want to replace. 
- * @param {String} config.branch It is the branch that you choice as the . 
- * @param {Boolean} config.isReplace If you want to replace the data.
- * 
+ * @param {Array} branchData - It is currect branch model data.
+ * @param {Object} config - It is the config that you want to replace branch.
+ * @param {String} config.dataType - It is the data type that can help you find the target exactly.
+ * @param {String} config.dataName - It is the prototype name that you want to replace. 
+ * @param {String} config.branch - It is the branch that you choice as the main branch to replace others branch data. 
+ * @param {Boolean} config.isReplace - If you want to replace the data.
  */
 pipe.preReplaceData = function preReplaceTheDataToCutDownTheMergeConflict (baseData, localData, remoteData, config) {
     var result = [];
@@ -145,16 +152,16 @@ pipe.preReplaceData = function preReplaceTheDataToCutDownTheMergeConflict (baseD
             var branch = config.branch[index];
             switch(type) {
                 case "Node":
-                    replaceData(name, branch, 'Node');
+                    replaceData('Node', name, branch);
                     break;
                 case "Component":
-                    replaceData(name, branch, '_components');
+                    replaceData('_components', name, branch);
                     break;
                 case "PrefabInfos":
-                    replaceData(name, branch, '_prefabInfos');
+                    replaceData('_prefabInfos', name, branch);
                     break;
                 case "ClickEvent":
-                    replaceData(name, branch, '_clickEvent');
+                    replaceData('_clickEvent', name, branch);
                     break;
             };
         });
