@@ -1,6 +1,6 @@
 {
   "name": "creator-smart-merge",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Cocos Creator expand plugin help user to merge their .fire/.prefab files.",
   "main": "merge.js",
   "repository": {
