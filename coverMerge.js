@@ -1,17 +1,17 @@
 const path = require('path');
 const fs = require('fs');
 const del = require('del');
-const convert = require('./Supportor/IdConverter');
+const Convert = require('./Supporter/IdConverter');
 
 module.exports = {
-    coverFile: function (tempFile, savePath, name) {
+    coverFile: function (tempFile, savePath, name, fileType) {
         var merge = fs.readFileSync(tempFile, {encoding: 'utf8'});
         var data = JSON.parse(merge);  
-        var result = this.trans2Fire(data);
+        var result = this.trans2Normal(data);
     
         console.log('``````````````finished!````````````````');
         
-        fs.writeFileSync(`${savePath}/${name}.fire`, JSON.stringify(result, null, '\t'), {
+        fs.writeFileSync(`${savePath}/${name}${fileType}`, JSON.stringify(result, null, '\t'), {
             encoding: 'utf8',
             force: true
         });
@@ -19,35 +19,43 @@ module.exports = {
         del.sync(path.join(savePath, 'Mergecache'), {force: true});
     },
 
-    trans2Fire: function (mergeData) {
+    trans2Normal: function (mergeData) {
         var tempData = [];
         mergeData = this.sortForTree(mergeData);
-        mergeData.forEach(function (obj) {
+        for (let i = 0; i < mergeData.length; i++) {
+            let obj = mergeData[i];
             tempData.push({
                 __id__: obj.__id__,
                 content: obj.content
             });
 
-            if (obj.content.__type__ === 'cc.SceneAsset') {
-                return;
-            }
             this.transComponents(obj, tempData);
             this.transPrefabInfos(obj, tempData);
-            this.transClickEvent(obj,tempData);
-        });
-        var result = convert.markToIndex(tempData);
+            this.transClickEvent(obj, tempData);
+        }
+        var con = new Convert(tempData);
+        var result = con.markToIndex();
 
         return result;
     },
 
     sortForTree: function (mergeData) {
-        var scene = mergeData.find(function (ele) {
+        var tempData = [];
+        tempData.push(mergeData[0]);
+
+        var firstNode = mergeData.find(function (ele) {
             if (ele.content.__type__ === 'cc.Scene')
                 return ele;
         });
-        var tempData = [];
-        tempData.push(mergeData[0]);
-        this.recurseChild(scene, mergeData).forEach(function (obj) {
+        // consider about the prefab
+        if (!firstNode) {
+            firstNode = mergeData.find(function (ele) {
+                if (ele.content.__type__ === 'cc.Node') {
+                    return ele;
+                }
+            });
+        }
+        this.recurseChild(firstNode, mergeData).forEach(function (obj) {
             tempData.push(obj);
         });
         
@@ -78,6 +86,10 @@ module.exports = {
     },
 
     transComponents: function (obj, tempData) {
+        if (!obj._components) {
+            return;
+        }
+
         for (let i = 0; i < obj._components.length; i++) {
             obj._components[i].content.node = {
                 __id__: obj.__id__
@@ -93,6 +105,10 @@ module.exports = {
     },
 
     transPrefabInfos: function (obj, tempData) {
+        if (!obj._prefabInfos) {
+            return;
+        }
+
         if (obj._prefabInfos.length > 0) {
             obj._prefabInfos[0].content.root = {
                 __id__: obj.__id__
@@ -108,6 +124,10 @@ module.exports = {
     },
 
     transClickEvent: function (obj, tempData) {
+        if (!obj._clickEvent) {
+            return;
+        }
+
         for (let k = 0; k < obj._clickEvent.length; k++) {
             tempData.push({
                 __id__: obj._clickEvent[k].__id__,

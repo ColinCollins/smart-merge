@@ -4,12 +4,12 @@ const fs = require('fs');
 const del = require('del');
 const { execFileSync } = require('child_process');
 const cover = require('./CoverMerge');
-const type = require('./Supportor/enums');
-const pipe = require('./Supportor/MergePipe');
-const convert = require('./Supportor/IdConverter');
+const type = require('./Supporter/enums');
+const pipe = require('./Supporter/MergePipe');
+const Convert = require('./Supporter/IdConverter');
 
-var config = JSON.parse(fs.readFileSync('./mergeConfig.json', {encoding: 'utf8'}));
-var fireFiles = {
+var config = JSON.parse(fs.readFileSync(`${process.cwd()}/mergeConfig.json`, {encoding: 'utf8'}));
+var files = {
     base: {},
     local: {},
     remote: {}
@@ -24,29 +24,30 @@ var fireFiles = {
 
     var projectPath = path.parse(args[2]);
     var dir = projectPath.dir;
+    var compareFiles = [];
     var merge = path.join(dir, 'merge.json');
-    if (projectPath.ext === '.fire') {
-        fireFiles.base = dumpSortFireFiles(args[2]); // base
-        fireFiles.local = dumpSortFireFiles(args[3]); // local
-        fireFiles.remote = dumpSortFireFiles(args[4]); // remote
+    if (projectPath.ext === '.fire' || projectPath.ext === '.prefab') {
+        files.base = dumpSortFireFiles(args[2]); // base
+        files.local = dumpSortFireFiles(args[3]); // local
+        files.remote = dumpSortFireFiles(args[4]); // remote
         // design the path that can be read
         if (!fs.existsSync(dir)) {
             console.error('Destination path is not available.')
             return;
         }
         // create the compare files, the files ext is the json
-        var compareFiles = outputFiles(dir);   
+        compareFiles= outputFiles(dir);   
         compareForMerge(config.smartMerge.dependMergeTool, compareFiles, merge);
 
-        var name = getFileName(fireFiles.base.name);
-        cover.coverFile(merge, dir, name);
+        var name = getFileName(files.base.name);
+        cover.coverFile(merge, dir, name, projectPath.ext);
     }
     else {
         for (let i = 2; i < args.length - 1; i++) {
             compareFiles.push(args[i]);
         }
         compareForMerge(config.smartMerge.dependMergeTool, compareFiles, merge);
-        cover.coverFile(merge, dir);
+        cover.coverFile(merge, dir, name, projectPath.ext);
     }
     return;
 })();
@@ -65,9 +66,10 @@ function dumpSortFireFiles(originFile) {
         components: [],
         prefabInfos: []
     }
-
+    var con = new Convert(tempData);
+    
     resolveData(rawData, tempData);
-    convert.indexToMark(tempData);
+    con.indexToMark();
     groupingData(tempData, filesPos);
 
     filesPos.nodes.sort(compareByName);
@@ -76,11 +78,12 @@ function dumpSortFireFiles(originFile) {
 }
 
 function resolveData (rawData, tempData) {
-    let handler = require('./Supportor/CreateMark');
+    let handler = require('./Supporter/CreateMark');
     for (let i = 0; i < rawData.length; i++) {
         switch (rawData[i].__type__) {
+            case type.prefab:
             case type.sceneAsset:
-                handler.createSceneAssetId(rawData[i].__type__);
+                handler.createHeaderId(rawData[i].__type__);
                 break;
             case type.scene:
                handler.createSceneId(rawData[i].__type__, rawData[i]._id);
@@ -113,7 +116,7 @@ function resolveData (rawData, tempData) {
 }
 
 function groupingData (tempData, filesPos) {
-    let handler = require('./Supportor/Grouping');
+    let handler = require('./Supporter/Grouping');
     tempData.forEach(function (obj) {
         switch(obj.type) {
             case type.scene:
@@ -135,13 +138,13 @@ function groupingData (tempData, filesPos) {
 }
 // destinationPath is the project root Path
 function outputFiles (destinationPath) {
-    var name = fireFiles.base.name;
+    var name = files.base.name;
 
     var modelBase, modelLocal, modelRemote;
     var result = pipe.preReplaceData(
-                        createModel(fireFiles.base), 
-                        createModel(fireFiles.local), 
-                        createModel(fireFiles.remote), 
+                        createModel(files.base), 
+                        createModel(files.local), 
+                        createModel(files.remote), 
                         config.replaceData
                     );
     if (result) {

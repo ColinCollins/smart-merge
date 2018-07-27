@@ -1,4 +1,4 @@
-const type = require('../enums');
+const type = require('../Supporter/enums');
 
 var createMark = {
     // return back
@@ -8,18 +8,29 @@ var createMark = {
     },
     // record the component name if there are some same components
     compAssemblyData: {},
+    nodeAssemblyData: {},
 
-    createSceneAssetId: function (_type) {
+    createHeaderId: function (_type) {
         this.result.__id__ = `${_type}: fileHeader`;
         this.result._id = '';
     },
     
-    createSceneId: function (_typee, _id) {
+    createSceneId: function (_type, _id) {
         this.result.__id__ = `${_type}: Scene, id: ${_id}`;
         this.result._id = '';
     },
     
     createNodeId: function (_type, _id, name) {
+        if (!_id) {
+            var member = `${_type}: ${name}`;
+            if (Object.keys(this.nodeAssemblyData).includes(member) > 0) {
+                this.nodeAssemblyData[member] += 1;
+            }
+            else {
+                this.nodeAssemblyData[member] = 1;
+            }
+            _id = this.nodeAssemblyData[member];
+        }
         this.result.__id__ = `${_type}: ${name}, id: ${_id}`;
         this.result._id = _id;
     },
@@ -37,7 +48,7 @@ var createMark = {
     createComponent: function (node, _type) {
         this.result.__id__ = `${type.comp}: ${_type}, Node: ${node._name}(${node._id})`;
         if (Object.keys(this.compAssemblyData).includes(this.result.__id__) > 0) {
-            this.compAssemblyData[this.result.__id__]++;
+            this.compAssemblyData[this.result.__id__] += 1;
             this.result.__id__ = `${type.comp}: ${_type}, Node: ${node._name}(${node._id}), index: ${this.compAssemblyData[this.result.__id__]}`;
         }
         else {
@@ -49,7 +60,7 @@ var createMark = {
     createCustemEvent: function () {
         this.result.__id__ = type.custom;
         if (Object.keys(this.compAssemblyData).includes(this.result.__id__) > 0) {
-            this.compAssemblyData[this.result.__id__]++;
+            this.compAssemblyData[this.result.__id__] += 1;
             this.result.__id__ = `${type.custom}, index: ${this.compAssemblyData[this.result.__id__]}`;
         }
         else {

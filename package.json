@@ -1,23 +1,20 @@
 {
-  "name": "smart-merge",
-  "version": "1.0.0",
-  "description": "smart-merge",
+  "name": "creator-smart-merge",
+  "version": "1.0.1",
+  "description": "Cocos Creator expand plugin help user to merge their .fire/.prefab files.",
   "main": "merge.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/ColinCollins/smart-merge.git"
   },
   "scripts": {
-    "merge": "node merge.js"
+    "merge": "node preMerge.js"
   },
   "author": "ColinCollins",
   "license": "ISC",
   "devDependencies": {
     "del": "^3.0.0",
     "globby": "^8.0.1"
-  },
-  "bin": {
-    "merge": "./merge.js"
   },
   "bugs": {
     "url": "https://github.com/ColinCollins/smart-merge/issues"
