@@ -15,42 +15,40 @@ var files = {
     remote: {}
 };
 
-(function () {
-    var args = process.argv;
-    if (args.length < 4) {
-        console.error('Arguments not enough!');
+merge = {
+    start: function (base, local, remote) {
+
+        var projectPath = path.parse(base);
+        var dir = projectPath.dir;
+        var compareFiles = [];
+        var merge = path.join(dir, 'merge.json');
+        if (projectPath.ext === '.fire' || projectPath.ext === '.prefab') {
+            files.base = dumpSortFireFiles(base); // base
+            files.local = dumpSortFireFiles(local); // local
+            files.remote = dumpSortFireFiles(remote); // remote
+            // design the path that can be read
+            if (!fs.existsSync(dir)) {
+                console.error('Destination path is not available.')
+                return;
+            }
+            // create the compare files, the files ext is the json
+            compareFiles= outputFiles(dir);   
+            compareForMerge(config.smartMerge.dependMergeTool, compareFiles, merge);
+
+            var name = getFileName(files.base.name);
+            cover.coverFile(merge, dir, name, projectPath.ext);
+        }
+        else {
+            compareFiles.push(base);
+            compareFiles.push(local);
+            compareFiles.push(remote);
+
+            compareForMerge(config.smartMerge.dependMergeTool, compareFiles, merge);
+            cover.coverFile(merge, dir, name, projectPath.ext);
+        }
         return;
     }
-
-    var projectPath = path.parse(args[2]);
-    var dir = projectPath.dir;
-    var compareFiles = [];
-    var merge = path.join(dir, 'merge.json');
-    if (projectPath.ext === '.fire' || projectPath.ext === '.prefab') {
-        files.base = dumpSortFireFiles(args[2]); // base
-        files.local = dumpSortFireFiles(args[3]); // local
-        files.remote = dumpSortFireFiles(args[4]); // remote
-        // design the path that can be read
-        if (!fs.existsSync(dir)) {
-            console.error('Destination path is not available.')
-            return;
-        }
-        // create the compare files, the files ext is the json
-        compareFiles= outputFiles(dir);   
-        compareForMerge(config.smartMerge.dependMergeTool, compareFiles, merge);
-
-        var name = getFileName(files.base.name);
-        cover.coverFile(merge, dir, name, projectPath.ext);
-    }
-    else {
-        for (let i = 2; i < args.length - 1; i++) {
-            compareFiles.push(args[i]);
-        }
-        compareForMerge(config.smartMerge.dependMergeTool, compareFiles, merge);
-        cover.coverFile(merge, dir, name, projectPath.ext);
-    }
-    return;
-})();
+}
 
 function dumpSortFireFiles(originFile) {   
     var origin = fs.readFileSync(originFile, {
@@ -263,3 +261,5 @@ function getFileName (tempName) {
 function compareByName (a, b) {
     return a.__id__.localeCompare(b.__id__);
 }
+
+module.exports = merge;

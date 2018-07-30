@@ -17,7 +17,9 @@ Creator Smart-Merge(以下简称 CSM)工具首先通过识别你当前使用的�
    npm install -g Creator-Smart-Merge
    ``` 
 2. 配置你的版本管理工具(目前只支持 SourceTree)，点击 Tools -> Options -> Diff 设置 MergeTool 为 Custom, 并配置 Diff Command 为 node 调用 merge 指令,传入参数设置为：
-`$BASE $LOCAL $REMOTE`
+```
+$BASE $LOCAL $REMOTE
+```
 
 ### 操作流程：
 
