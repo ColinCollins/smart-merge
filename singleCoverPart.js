@@ -12,7 +12,6 @@ const cover = require('./coverMerge');
     var projectPath = path.parse(args[2]);
     var dir = projectPath.dir;
     var merge = path.join(dir, 'merge.json');
-
     var name = args[3];
 
     cover.coverFile(merge, dir, name);

@@ -6,9 +6,9 @@ const process = require('child_process');
     var parse = JSON.parse(launch);
     let args = parse.configurations[0].args;
     let fileParse = args[1].match(/([\w-]+)_BASE_([0-9]+)([\.\w]+)/);
-    var base = `E:/GitStone/example-cases/assets/${args[0]}/${fileParse[1]}_BASE_${fileParse[2]}${fileParse[3]}`;
-    var local = `E:/GitStone/example-cases/assets/${args[0]}/${fileParse[1]}_LOCAl_${fileParse[2]}${fileParse[3]}`
-    var remote = `E:/GitStone/example-cases/assets/${args[0]}/${fileParse[1]}_REMOTE_${fileParse[2]}${fileParse[3]}`
+    var base = `${args[0]}/${fileParse[1]}_BASE_${fileParse[2]}${fileParse[3]}`;
+    var local = `${args[0]}/${fileParse[1]}_LOCAl_${fileParse[2]}${fileParse[3]}`
+    var remote = `${args[0]}/${fileParse[1]}_REMOTE_${fileParse[2]}${fileParse[3]}`
     const { cwd } = require('process');
     var child = process.spawn('node', ['bin/index.js', 'start', base, local, remote], {
         cwd: cwd(),
