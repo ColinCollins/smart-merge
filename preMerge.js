@@ -49,7 +49,7 @@ merge = {
     }
 }
 
-function dumpSortFireFiles(originFile) {   
+function dumpSortFireFiles (originFile) {   
     var origin = fs.readFileSync(originFile, {
         encoding: 'utf8',
     });
@@ -63,8 +63,7 @@ function dumpSortFireFiles(originFile) {
         components: [],
         prefabInfos: []
     }
-    var con = new Convert(tempData);
-    
+    var con = new Convert(tempData);   
     resolveData(rawData, tempData);
     con.indexToMark();
     groupingData(tempData, filesPos);
@@ -83,7 +82,7 @@ function resolveData (rawData, tempData) {
                 handler.createHeaderId(rawData[i].__type__);
                 break;
             case type.scene:
-               handler.createSceneId(rawData[i].__type__, rawData[i]._id);
+                handler.createSceneId(rawData[i].__type__, rawData[i]._id);
                 break;
             case type.privateNode:
             case type.node:
@@ -115,7 +114,7 @@ function resolveData (rawData, tempData) {
 function groupingData (tempData, filesPos) {
     let handler = require('./Supporter/Grouping');
     tempData.forEach(function (obj) {
-        switch(obj.type) {
+        switch (obj.type) {
             case type.scene:
             case type.privateNode:
             case type.node:
@@ -212,7 +211,7 @@ function componentModel (node, obj, filePos) {
     for (let i = 0; i < filePos.components.length; i++) {
         var comp = filePos.components[i];
         if (comp._id == obj._id) {
-            if (comp._properties.__type__ == type.clickEvent) {
+            if (comp._properties.__type__ === type.clickEvent) {
                 node._clickEvent.push({
                     __id__: comp.__id__,
                     content: comp._properties
@@ -234,7 +233,7 @@ function prefabInfoModel (node, obj, filePos) {
 
     for (let i = 0; i < filePos.prefabInfos.length; i++) {
         var info = filePos.prefabInfos[i];
-        if (obj.prefab.__id__ == info.__id__) {
+        if (obj.prefab.__id__ === info.__id__) {
             info._properties.root = undefined;
             node._prefabInfos.push({
                 __id__: info.__id__,

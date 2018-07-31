@@ -6,7 +6,7 @@ var createMark = {
         __id__: '',
         _id: ''
     },
-    // record the component name if there are some same components
+    // record the component name if there are some components as same
     compAssemblyData: {},
     nodeAssemblyData: {},
 

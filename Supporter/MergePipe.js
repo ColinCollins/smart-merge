@@ -48,7 +48,7 @@ function partOfNode (mainData, dataName) {
         mainData[2] && replaceContent(mainData[2], data, index, dataName);
     });
 }
-// this part container component, prefabInfo, clickEvent, custome
+// this part contain component, prefabInfo, clickEvent, custome
 function partOfDefault (mainData, dataName, type) {
     mainData[0].forEach(function (data, index1) {
         if (!data[type]) {
@@ -70,10 +70,10 @@ function partOfDefault (mainData, dataName, type) {
     });
 }
 
-// Return a array and the main branch will set in the first place.
+// return a array and the main branch will set at the first.
 function choiceMainBranch (branch) {
     var dataArray = [];
-    switch(branch) {
+    switch (branch) {
         case "Base":
             dataArray.push(pipe.base);
             dataArray.push(pipe.local);
@@ -100,11 +100,11 @@ function checkContentReplaceable (tempData, mainData, dataName) {
     if (!tempData) {
         return false;
     }
-    // check the tempData if the tempData is same as the mainData
+    // check the tempData if the tempData is the same as the mainData
     if (tempData.__id__ === mainData.__id__) {
         return true;
     }
-    else if(tempData.content.__type__ === mainData.content.__type__) {
+    else if (tempData.content.__type__ === mainData.content.__type__) {
         if (tempData.content._name === mainData.content._name) {
             // did not have the prototype
             if (!tempData.content[dataName]) {

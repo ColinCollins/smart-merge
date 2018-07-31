@@ -73,7 +73,7 @@ module.exports = {
         node.content._children.forEach(function (child) {
             for (let i = 0; i < mergeData.length; i++) {
                 if (mergeData[i].__id__ === child.__id__) {
-                    record = _self.recurseChild (mergeData[i], mergeData);
+                    record = _self.recurseChild(mergeData[i], mergeData);
                     for (let j = 0; j < record.length; j++){
                         result.push(record[j]);
                     }

@@ -1,7 +1,7 @@
 module.exports = {
     Divide2Nodes: function (obj, filesPos) {
         var node = {
-            _id:obj.data._id,
+            _id: obj.data._id,
             prefab: obj.data._prefab,
             __id__: obj.__id__,
             _properties: obj.data
