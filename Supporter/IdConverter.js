@@ -41,7 +41,7 @@ proto.replaceMarkFun = function (index, obj) {
     var _id = obj._id;
     var _name = obj.name;
     if (target.data.__type__ === type.clickEvent) {    
-        __id__ = `${type.clickEvent}: ${obj.name}, Comp ${_name}(${_id})`;
+        __id__ = `${type.clickEvent}: ${target.data.handler}, Comp ${_name}(${_id})`;
         target.__id__ = __id__;
         target._id = _id;
     }

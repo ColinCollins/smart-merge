@@ -4,14 +4,15 @@ const process = require('child_process');
 (function () {
     var launch = fs.readFileSync('.vscode/launch.json',{encoding: 'utf8'});
     var parse = JSON.parse(launch);
-    let args = parse.configurations[3].args;
+    let args = parse.configurations[0].args;
     let fileParse = args[1].match(/([\w-]+)_BASE_([0-9]+)([\.\w]+)/);
     var base = `E:/GitStone/example-cases/assets/${args[0]}/${fileParse[1]}_BASE_${fileParse[2]}${fileParse[3]}`;
     var local = `E:/GitStone/example-cases/assets/${args[0]}/${fileParse[1]}_LOCAl_${fileParse[2]}${fileParse[3]}`
     var remote = `E:/GitStone/example-cases/assets/${args[0]}/${fileParse[1]}_REMOTE_${fileParse[2]}${fileParse[3]}`
     const { cwd } = require('process');
-    var child = process.spawn('node', ['PreMerge.js', base, local, remote], {
-        cwd: cwd()
+    var child = process.spawn('node', ['bin/index.js', 'start', base, local, remote], {
+        cwd: cwd(),
+        env: process.env
     });
     child.stderr.on('data', (data) => {
         console.log(`stderr: ${data}`)

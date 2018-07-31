@@ -17,7 +17,6 @@ var files = {
 
 merge = {
     start: function (base, local, remote) {
-
         var projectPath = path.parse(base);
         var dir = projectPath.dir;
         var compareFiles = [];
