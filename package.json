@@ -11,7 +11,10 @@
     "merge": "./bin/index.js"
   },
   "author": "ColinCollins",
-  "license": "ISC",
+  "license": { 
+      "type" : "Cocos",
+      "url" : "./licenses/LICENSE"
+    },
   "devDependencies": {
     "commander": "^2.16.0",
     "del": "^3.0.0"
